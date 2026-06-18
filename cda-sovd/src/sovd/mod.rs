@@ -440,22 +440,27 @@ pub async fn route<T: UdsEcu + SchemaProvider + Clone, U: FileManager, S: Securi
     };
 
     let registry = EcuExecutionRegistry::default();
-    let router = components_route::<T, U>(state.clone(), &mut file_manager, &registry).await;
 
-    let vehicle_router = vehicle_route::<T, S>(state, router, functional_group_config)
+    let router = Router::new();
+
+    let router =
+        add_components_route::<T, U>(router, state.clone(), &mut file_manager, &registry).await;
+
+    let router = add_vehicle_route::<T, S>(router, state, functional_group_config)
         .await
         .layer(middleware::from_fn(security_plugin_middleware::<S>))
         .with_state(uds.clone());
-    (vehicle_router, registry)
+
+    (router, registry)
 }
 
-async fn vehicle_route<T: UdsEcu + SchemaProvider + Clone, S: SecurityPluginLoader>(
-    state: WebserverState<T>,
+async fn add_vehicle_route<T: UdsEcu + SchemaProvider + Clone, S: SecurityPluginLoader>(
     router: Router<WebserverState<T>>,
+    state: WebserverState<T>,
     functional_group_config: FunctionalDescriptionConfig,
 ) -> Router<T> {
     let router = router.nest_api_service(
-        "/vehicle/v15/functions",
+        "/functions",
         functions::functional_groups::create_functional_group_routes(
             state.clone(),
             functional_group_config,
@@ -464,12 +469,12 @@ async fn vehicle_route<T: UdsEcu + SchemaProvider + Clone, S: SecurityPluginLoad
     );
     router
         .api_route(
-            "/vehicle/v15/locks",
+            "/locks",
             routing::post_with(locks::vehicle::post, locks::vehicle::docs_post)
                 .get_with(locks::vehicle::get, locks::vehicle::docs_get),
         )
         .api_route(
-            "/vehicle/v15/locks/{lock}",
+            "/locks/{lock}",
             routing::get_with(locks::vehicle::lock::get, locks::vehicle::lock::docs_get)
                 .put_with(locks::vehicle::lock::put, locks::vehicle::lock::docs_put)
                 .delete_with(
@@ -477,26 +482,23 @@ async fn vehicle_route<T: UdsEcu + SchemaProvider + Clone, S: SecurityPluginLoad
                     locks::vehicle::lock::docs_delete,
                 ),
         )
-        .route("/vehicle/v15/apps", routing::get(apps::get))
+        .route("/apps", routing::get(apps::get))
+        .route("/apps/sovd2uds", routing::get(apps::sovd2uds::get))
         .route(
-            "/vehicle/v15/apps/sovd2uds",
-            routing::get(apps::sovd2uds::get),
-        )
-        .route(
-            "/vehicle/v15/apps/sovd2uds/bulk-data",
+            "/apps/sovd2uds/bulk-data",
             routing::get(apps::sovd2uds::bulk_data::get),
         )
         .api_route(
-            "/vehicle/v15/apps/sovd2uds/bulk-data/flashfiles",
+            "/apps/sovd2uds/bulk-data/flashfiles",
             routing::get_with(
                 apps::sovd2uds::bulk_data::flash_files::get,
                 apps::sovd2uds::bulk_data::flash_files::docs_get,
             ),
         )
-        .route("/vehicle/v15/authorize", routing::post(S::authorize))
+        .route("/authorize", routing::post(S::authorize))
         .with_state(state)
         .api_route(
-            "/vehicle/v15/apps/sovd2uds/data/networkstructure",
+            "/apps/sovd2uds/data/networkstructure",
             routing::get_with(
                 apps::sovd2uds::data::networkstructure::get::<T>,
                 apps::sovd2uds::data::networkstructure::docs_get,
@@ -569,15 +571,13 @@ fn docs_components(op: TransformOperation) -> TransformOperation {
         })
 }
 
-async fn components_route<T: UdsEcu + SchemaProvider + Clone, U: FileManager + 'static>(
+async fn add_components_route<T: UdsEcu + SchemaProvider + Clone, U: FileManager + 'static>(
+    router: Router<WebserverState<T>>,
     state: WebserverState<T>,
     file_manager: &mut HashMap<String, U>,
     registry: &EcuExecutionRegistry,
 ) -> Router<WebserverState<T>> {
-    let mut router = Router::new().api_route(
-        "/vehicle/v15/components",
-        get_with(get_components, docs_components),
-    );
+    let mut router = router.api_route("/components", get_with(get_components, docs_components));
     let mut ecus = state.uds.get_physical_ecus().await;
     for ecu_name in ecus.drain(0..) {
         match ecu_route::<T, U>(&ecu_name, &state, file_manager, registry).await {
@@ -623,7 +623,7 @@ async fn ecu_route<T: UdsEcu + SchemaProvider + Clone, U: FileManager + 'static>
             Arc::clone(&ecu_state.service_executions),
         )
         .await;
-    let ecu_path = format!("/vehicle/v15/components/{ecu_lower}");
+    let ecu_path = format!("/components/{ecu_lower}");
 
     let router = Router::new()
         .api_route(

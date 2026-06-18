@@ -154,7 +154,7 @@ where
 {
     let (vehicle_router, registry) = build_vehicle_routes::<T, M, S>(config, resources).await;
 
-    let handle = dynamic_router.add_routes(vehicle_router).await;
+    let handle = dynamic_router.add_vehicle_routes(vehicle_router).await;
 
     tracing::info!("Vehicle routes added to webserver");
     Ok((registry, handle))
