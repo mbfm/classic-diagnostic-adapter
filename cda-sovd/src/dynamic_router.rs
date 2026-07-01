@@ -76,7 +76,7 @@ pub struct DynamicRouter {
 
 pub struct DynamicRouterOptions {
     /// The URL prefix to prepend when [`DynamicRouter::add_vehicle_routes`] is called.
-    pub vehicle_base_url: String,
+    pub vehicle_base_uri_path: BaseUriPath,
 }
 
 impl DynamicRouter {
@@ -119,6 +119,11 @@ impl DynamicRouter {
         Arc::new(self.openapi.read().await.clone())
     }
 
+    #[must_use]
+    pub fn get_vehicle_base_uri_path(&self) -> &BaseUriPath {
+        &self.options.vehicle_base_uri_path
+    }
+
     /// Registers a route group and recomposes the router.
     ///
     /// Returns a [`RouteHandle`] that can be used to later
@@ -142,7 +147,7 @@ impl DynamicRouter {
     /// Prefixes the route with the vehicle base URL derived from the configuration,
     /// then registers it with [`DynamicRouter::add_routes`].
     pub async fn add_vehicle_routes(&self, routes: ApiRouter) -> RouteHandle {
-        let routes = ApiRouter::new().nest(&self.options.vehicle_base_url, routes);
+        let routes = ApiRouter::new().nest(&self.options.vehicle_base_uri_path.value, routes);
         self.add_routes(routes).await
     }
 
@@ -250,6 +255,23 @@ impl DynamicRouter {
             .layer(middleware::from_fn(
                 sovd::error::sovd_method_not_allowed_handler,
             ))
+    }
+}
+
+pub struct BaseUriPath {
+    value: String,
+}
+impl BaseUriPath {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+    #[must_use]
+    pub fn join(&self, suffix: &str) -> String {
+        let prefix = self.value.trim_end_matches('/');
+        let suffix = suffix.trim_start_matches('/');
+        format!("{prefix}/{suffix}")
     }
 }
 
@@ -487,7 +509,7 @@ mod tests {
 
         let router = dr.get_router().await;
         let response = router
-            .oneshot(request("GET", "/vehicle_base_url/foo"))
+            .oneshot(request("GET", "/vehicle_base_uri_path/foo"))
             .await
             .unwrap();
 
@@ -496,14 +518,14 @@ mod tests {
 
         let api = dr.get_openapi().await;
         assert_eq!(
-            get_path_description(&api, "/vehicle_base_url/foo").as_deref(),
+            get_path_description(&api, "/vehicle_base_uri_path/foo").as_deref(),
             Some("from foo")
         );
     }
 
     fn create_test_router() -> DynamicRouter {
         DynamicRouter::new(DynamicRouterOptions {
-            vehicle_base_url: "/vehicle_base_url".to_string(),
+            vehicle_base_uri_path: BaseUriPath::new("/vehicle_base_uri_path"),
         })
     }
 }

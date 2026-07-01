@@ -23,12 +23,11 @@ use cda_interfaces::runtime_update_api::{
 };
 use sovd_interfaces::error::{ApiErrorResponse, ErrorCode};
 
-use crate::{VendorErrorCode, sovd::update_guard::ExemptRoute};
+use crate::{VendorErrorCode, dynamic_router::BaseUriPath, sovd::update_guard::ExemptRoute};
 
-const EXECUTIONS_ROUTE: &str =
-    "/vehicle/v15/apps/sovd2uds/bulk-data/runtimefiles-nextupdate/executions";
+const EXECUTIONS_ROUTE: &str = "/apps/sovd2uds/bulk-data/runtimefiles-nextupdate/executions";
 const EXECUTIONS_ID_ROUTE: &str =
-    "/vehicle/v15/apps/sovd2uds/bulk-data/runtimefiles-nextupdate/executions/{id}";
+    "/apps/sovd2uds/bulk-data/runtimefiles-nextupdate/executions/{id}";
 
 pub struct RuntimeUpdateRouteState<P, L> {
     pub plugin: Arc<P>,
@@ -512,22 +511,22 @@ pub fn routes<
 ) -> axum::Router {
     axum::Router::new()
         .route(
-            "/vehicle/v15/apps/sovd2uds/bulk-data/runtimefiles-current",
+            "/apps/sovd2uds/bulk-data/runtimefiles-current",
             axum::routing::get(current::get::<P, L>),
         )
         .route(
-            "/vehicle/v15/apps/sovd2uds/bulk-data/runtimefiles-nextupdate",
+            "/apps/sovd2uds/bulk-data/runtimefiles-nextupdate",
             axum::routing::get(nextupdate::get::<P, L>)
                 .post(nextupdate::post::<P, L>)
                 .layer(axum::extract::DefaultBodyLimit::max(upload_limit))
                 .delete(nextupdate::delete::<P, L>),
         )
         .route(
-            "/vehicle/v15/apps/sovd2uds/bulk-data/runtimefiles-nextupdate/{id}",
+            "/apps/sovd2uds/bulk-data/runtimefiles-nextupdate/{id}",
             axum::routing::delete(nextupdate::id::delete::<P, L>),
         )
         .route(
-            "/vehicle/v15/apps/sovd2uds/bulk-data/runtimefiles-backup",
+            "/apps/sovd2uds/bulk-data/runtimefiles-backup",
             axum::routing::get(backup::get::<P, L>).delete(backup::delete::<P, L>),
         )
         .route(
@@ -539,7 +538,7 @@ pub fn routes<
             axum::routing::get(executions::id::get::<P, L>),
         )
         .route(
-            "/vehicle/v15/apps/sovd2uds/operations/diagnostic-database-update",
+            "/apps/sovd2uds/operations/diagnostic-database-update",
             axum::routing::post(executions::post::<P, L>),
         )
         .layer(axum::middleware::from_fn(
@@ -549,9 +548,9 @@ pub fn routes<
 }
 
 /// Returns the [`ExemptRoute`]s that must remain accessible during a database update.
-pub fn update_exempt_routes() -> Vec<ExemptRoute> {
+pub fn update_exempt_routes(vehicle_base_uri_path: &BaseUriPath) -> Vec<ExemptRoute> {
     vec![ExemptRoute {
-        prefix: EXECUTIONS_ROUTE.to_string(),
+        prefix: vehicle_base_uri_path.join(EXECUTIONS_ROUTE),
         methods: vec![http::Method::GET],
     }]
 }

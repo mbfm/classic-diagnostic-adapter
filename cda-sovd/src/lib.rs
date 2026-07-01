@@ -33,6 +33,7 @@ use tokio::net::TcpListener;
 use tower::{Layer, ServiceExt as TowerServiceExt};
 use tower_http::{normalize_path::NormalizePathLayer, trace::TraceLayer};
 
+use crate::dynamic_router::BaseUriPath;
 /// Public API surface re-exported from the crate-internal `sovd` module.
 pub use crate::sovd::{
     EcuExecutionRegistry, SovdLockStateProvider,
@@ -96,7 +97,7 @@ where
     F: Future<Output = ()> + Clone + Send + 'static,
 {
     let dynamic_router = DynamicRouter::new(DynamicRouterOptions {
-        vehicle_base_url: "/vehicle/v15".to_string(),
+        vehicle_base_uri_path: BaseUriPath::new("/vehicle/v15"),
     });
     let listen_address = format!("{}:{}", config.host, config.port);
     let listener = TcpListener::bind(&listen_address).await.map_err(|e| {
@@ -204,7 +205,11 @@ where
     L: cda_interfaces::runtime_update_api::LockStateProvider,
 {
     update_guard
-        .extend_exempt(sovd::apps::sovd2uds::bulk_data::runtimefiles::update_exempt_routes())
+        .extend_exempt(
+            sovd::apps::sovd2uds::bulk_data::runtimefiles::update_exempt_routes(
+                dynamic_router.get_vehicle_base_uri_path(),
+            ),
+        )
         .await;
 
     let route_state = RuntimeUpdateRouteState {
@@ -214,7 +219,7 @@ where
     };
     let router =
         sovd::apps::sovd2uds::bulk_data::runtimefiles::routes::<S, P, L>(route_state, upload_limit);
-    let handle = dynamic_router.add_routes(router.into()).await;
+    let handle = dynamic_router.add_vehicle_routes(router.into()).await;
     tracing::info!("Runtime update routes added to webserver");
     handle
 }
