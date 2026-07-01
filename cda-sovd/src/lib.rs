@@ -39,7 +39,7 @@ pub use crate::sovd::{
     apps::sovd2uds::bulk_data::runtimefiles::RuntimeUpdateRouteState,
     error::VendorErrorCode,
     locks::Locks,
-    static_data::add_static_data_endpoint,
+    static_data::add_static_vehicle_data_endpoint,
     update_guard::{ExemptRoute, UpdateGuardLayer, UpdateGuardState},
 };
 pub mod dynamic_router;

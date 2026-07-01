@@ -367,16 +367,16 @@ fn start_cda(config: Configuration) {
                 }
             }
         }) {
-            cda_sovd::add_static_data_endpoint(
+            cda_sovd::add_static_vehicle_data_endpoint(
                 &dynamic_router,
                 version_info.clone(),
-                "/vehicle/v15/apps/sovd2uds/data/version",
+                "/apps/sovd2uds/data/version",
             )
             .await;
-            cda_sovd::add_static_data_endpoint(
+            cda_sovd::add_static_vehicle_data_endpoint(
                 &dynamic_router,
                 version_info,
-                "/vehicle/v15/data/version",
+                "/data/version",
             )
             .await;
         }

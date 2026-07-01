@@ -1032,7 +1032,7 @@ pub(crate) mod static_data {
     /// * `data` - The version data to return.
     /// * `path` - The path to serve the data from.
     ///   There is no processing of this, it will be returned as is in the response.
-    pub async fn add_static_data_endpoint(
+    pub async fn add_static_vehicle_data_endpoint(
         dynamic_router: &DynamicRouter,
         data: serde_json::Map<String, serde_json::Value>,
         path: &str,
@@ -1046,7 +1046,7 @@ pub(crate) mod static_data {
                 }),
             )
             .with_state(data);
-        dynamic_router.add_routes(router).await;
+        dynamic_router.add_vehicle_routes(router).await;
     }
 
     pub(crate) async fn get(

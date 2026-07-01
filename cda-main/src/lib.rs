@@ -643,14 +643,13 @@ async fn register_version_endpoints(dynamic_router: &cda_sovd::dynamic_router::D
         tracing::error!("Failed to build version information");
         return;
     };
-    cda_sovd::add_static_data_endpoint(
+    cda_sovd::add_static_vehicle_data_endpoint(
         dynamic_router,
         version_info.clone(),
-        "/vehicle/v15/apps/sovd2uds/data/version",
+        "/apps/sovd2uds/data/version",
     )
     .await;
-    cda_sovd::add_static_data_endpoint(dynamic_router, version_info, "/vehicle/v15/data/version")
-        .await;
+    cda_sovd::add_static_vehicle_data_endpoint(dynamic_router, version_info, "/data/version").await;
 }
 
 /// Loads vehicle data including MDD databases and vehicle components.
