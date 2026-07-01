@@ -26,7 +26,7 @@ use cda_interfaces::{
     datatypes::ComponentsConfig, dlt_ctx, file_manager::FileManager,
 };
 use cda_plugin_security::SecurityPluginLoader;
-use dynamic_router::DynamicRouter;
+use dynamic_router::{DynamicRouter, DynamicRouterOptions};
 pub use dynamic_router::{RouteGroupNotFound, RouteHandle};
 pub use http::Method;
 use tokio::net::TcpListener;
@@ -95,7 +95,9 @@ pub async fn launch_webserver<F>(
 where
     F: Future<Output = ()> + Clone + Send + 'static,
 {
-    let dynamic_router = DynamicRouter::new();
+    let dynamic_router = DynamicRouter::new(DynamicRouterOptions {
+        vehicle_base_url: "/vehicle/v15".to_string(),
+    });
     let listen_address = format!("{}:{}", config.host, config.port);
     let listener = TcpListener::bind(&listen_address).await.map_err(|e| {
         DoipGatewaySetupError::ServerError(format!("Failed to bind to {listen_address}: {e}"))

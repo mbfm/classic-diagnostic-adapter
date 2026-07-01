@@ -71,12 +71,18 @@ pub struct DynamicRouter {
     router: Arc<RwLock<axum::Router>>,
     openapi: Arc<RwLock<OpenApi>>,
     next_id: Arc<AtomicU64>,
+    options: Arc<DynamicRouterOptions>,
+}
+
+pub struct DynamicRouterOptions {
+    /// The URL prefix to prepend when [`DynamicRouter::add_vehicle_routes`] is called.
+    pub vehicle_base_url: String,
 }
 
 impl DynamicRouter {
     /// Creates a new [`DynamicRouter`] with default base layers and no route groups.
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(options: DynamicRouterOptions) -> Self {
         aide::generate::extract_schemas(true);
         aide::generate::on_error(|e| {
             if let aide::Error::DuplicateRequestBody = e {
@@ -98,6 +104,7 @@ impl DynamicRouter {
             router: Arc::new(RwLock::new(initial_router)),
             openapi: Arc::new(RwLock::new(OpenApi::default())),
             next_id: Arc::new(AtomicU64::new(0)),
+            options: Arc::new(options),
         }
     }
 
@@ -130,6 +137,13 @@ impl DynamicRouter {
         }
         self.recompose().await;
         RouteHandle { id }
+    }
+
+    /// Prefixes the route with the vehicle base URL derived from the configuration,
+    /// then registers it with [`DynamicRouter::add_routes`].
+    pub async fn add_vehicle_routes(&self, routes: ApiRouter) -> RouteHandle {
+        let routes = ApiRouter::new().nest(&self.options.vehicle_base_url, routes);
+        self.add_routes(routes).await
     }
 
     /// Replaces the route group identified by `handle` with new routes and recomposes the router.
@@ -239,12 +253,6 @@ impl DynamicRouter {
     }
 }
 
-impl Default for DynamicRouter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use aide::{axum::routing, openapi::ReferenceOr};
@@ -276,7 +284,7 @@ mod tests {
 
     #[tokio::test]
     async fn later_group_overrides_earlier_on_same_path() {
-        let dr = DynamicRouter::new();
+        let dr = create_test_router();
 
         let group_a =
             ApiRouter::new().route("/foo", routing::get(|| async { "group_a".into_response() }));
@@ -295,7 +303,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_overridden_path_remains_reachable() {
-        let dr = DynamicRouter::new();
+        let dr = create_test_router();
 
         let group_a = ApiRouter::new()
             .route("/foo", routing::get(|| async { "a_foo".into_response() }))
@@ -322,7 +330,7 @@ mod tests {
 
     #[tokio::test]
     async fn remove_overriding_group_restores_original() {
-        let dr = DynamicRouter::new();
+        let dr = create_test_router();
 
         let group_a =
             ApiRouter::new().route("/foo", routing::get(|| async { "group_a".into_response() }));
@@ -344,7 +352,7 @@ mod tests {
 
     #[tokio::test]
     async fn replace_preserves_insertion_order() {
-        let dr = DynamicRouter::new();
+        let dr = create_test_router();
 
         let group_a =
             ApiRouter::new().route("/foo", routing::get(|| async { "a_v1".into_response() }));
@@ -369,7 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn openapi_reflects_override_latest_wins() {
-        let dr = DynamicRouter::new();
+        let dr = create_test_router();
 
         let group_a = ApiRouter::new().api_route(
             "/foo",
@@ -398,7 +406,7 @@ mod tests {
 
     #[tokio::test]
     async fn openapi_preserves_non_overridden_paths() {
-        let dr = DynamicRouter::new();
+        let dr = create_test_router();
 
         let group_a = ApiRouter::new()
             .api_route(
@@ -433,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn openapi_updates_after_remove() {
-        let dr = DynamicRouter::new();
+        let dr = create_test_router();
 
         let group_a = ApiRouter::new().api_route(
             "/foo",
@@ -465,5 +473,37 @@ mod tests {
             get_path_description(&api, "/foo").as_deref(),
             Some("from a")
         );
+    }
+
+    #[tokio::test]
+    async fn routes_get_nested_under_base_url() {
+        let dr = create_test_router();
+
+        dr.add_vehicle_routes(ApiRouter::new().api_route(
+            "/foo",
+            routing::get_with(|| async { "foo" }, |op| op.description("from foo")),
+        ))
+        .await;
+
+        let router = dr.get_router().await;
+        let response = router
+            .oneshot(request("GET", "/vehicle_base_url/foo"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(body_to_string(response.into_body()).await, "foo");
+
+        let api = dr.get_openapi().await;
+        assert_eq!(
+            get_path_description(&api, "/vehicle_base_url/foo").as_deref(),
+            Some("from foo")
+        );
+    }
+
+    fn create_test_router() -> DynamicRouter {
+        DynamicRouter::new(DynamicRouterOptions {
+            vehicle_base_url: "/vehicle_base_url".to_string(),
+        })
     }
 }
