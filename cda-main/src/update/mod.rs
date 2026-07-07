@@ -155,6 +155,7 @@ where
                 flash_files_path: self.flash_files_path.clone(),
                 functional_group_config: cfg.functional_description.clone(),
                 components_config: self.components_config.clone(),
+                base_uri_path: crate::vehicle_base_uri_path(),
             },
             cda_sovd::VehicleResources {
                 ecu_uds: new_components.uds_manager,

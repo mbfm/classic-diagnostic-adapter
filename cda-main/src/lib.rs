@@ -27,7 +27,7 @@ use cda_interfaces::{
 use cda_plugin_security::{
     DefaultSecurityPlugin, DefaultSecurityPluginData, SecurityPlugin, SecurityPluginLoader,
 };
-use cda_sovd::Locks;
+use cda_sovd::{Locks, dynamic_router::BaseUriPath};
 use cda_tracing::{OtelGuard, TracingSetupError, TracingWorkerGuard};
 use clap::{Parser, Subcommand};
 use figment::{
@@ -55,6 +55,10 @@ const DOIP_HEALTH_COMPONENT_KEY: &str = "doip";
 
 #[cfg(feature = "health")]
 const MAIN_HEALTH_COMPONENT_KEY: &str = "main";
+
+fn vehicle_base_uri_path() -> BaseUriPath {
+    BaseUriPath::new("/vehicle/v15")
+}
 
 pub type DatabaseMap<S> = HashMap<String, RwLock<EcuManager<S>>>;
 pub type FileManagerMap = HashMap<String, FileManager>;
@@ -566,6 +570,7 @@ pub async fn setup_vehicle_and_routes<SP: SecurityPlugin, SL: SecurityPluginLoad
             flash_files_path: config.flash_files_path.clone(),
             functional_group_config: config.functional_description.clone(),
             components_config: config.components.clone(),
+            base_uri_path: crate::vehicle_base_uri_path(),
         },
         cda_sovd::VehicleResources {
             ecu_uds: vehicle_data.uds_manager.clone(),

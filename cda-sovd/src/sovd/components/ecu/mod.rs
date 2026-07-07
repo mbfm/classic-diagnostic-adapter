@@ -50,14 +50,19 @@ pub(crate) mod x_sovd2uds_download;
 
 // [[ dimpl~sovd-api-component-sdgsd, GET /components/{ecu} SDG handler ]]
 pub(crate) async fn get<T: UdsEcu + Clone, U: FileManager>(
-    State(WebserverEcuState { ecu_name, uds, .. }): State<WebserverEcuState<T, U>>,
+    State(WebserverEcuState {
+        ecu_name,
+        uds,
+        vehicle_base_uri_path,
+        ..
+    }): State<WebserverEcuState<T, U>>,
     WithRejection(Query(query), _): WithRejection<
         Query<sovd_interfaces::components::ComponentQuery>,
         ApiError,
     >,
 ) -> impl IntoApiResponse {
     let include_schema = query.include_schema;
-    let base_path = format!("http://localhost:20002/vehicle/v15/components/{ecu_name}");
+    let base_path = format!("http://localhost:20002{vehicle_base_uri_path}/components/{ecu_name}");
     let variant = match uds.get_variant(&ecu_name).await {
         Ok(v) => v,
         Err(e) => {

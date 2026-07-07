@@ -53,6 +53,7 @@ use uuid::Uuid;
 
 use crate::{
     VendorErrorCode,
+    dynamic_router::BaseUriPath,
     sovd::components::ecu::{
         configurations, data, faults, genericservice, modes, operations, x_single_ecu_jobs,
         x_sovd2uds_bulk_data, x_sovd2uds_download,
@@ -126,6 +127,7 @@ pub(crate) struct WebserverEcuState<T: UdsEcu + Clone, U: FileManager> {
     flash_data: Arc<RwLock<sovd_interfaces::sovd2uds::FileList>>,
     mdd_embedded_files: Arc<U>,
     update_in_progress: Arc<std::sync::atomic::AtomicBool>,
+    vehicle_base_uri_path: BaseUriPath,
 }
 
 /// Shared behaviour for execution-state types (`ServiceExecution` for single-ECU
@@ -389,6 +391,7 @@ pub(crate) struct WebserverState<T: UdsEcu + Clone> {
     flash_data: Arc<RwLock<sovd_interfaces::sovd2uds::FileList>>,
     components_config: Arc<RwLock<ComponentsConfig>>,
     update_in_progress: Arc<std::sync::atomic::AtomicBool>,
+    vehicle_base_uri_path: BaseUriPath,
 }
 
 pub(crate) fn resource_response(
@@ -425,6 +428,7 @@ pub async fn route<T: UdsEcu + SchemaProvider + Clone, U: FileManager, S: Securi
     mut file_manager: HashMap<String, U>,
     locks: Arc<Locks>,
     update_in_progress: Arc<std::sync::atomic::AtomicBool>,
+    vehicle_base_uri_path: BaseUriPath,
 ) -> (Router, EcuExecutionRegistry) {
     let flash_data = Arc::new(RwLock::new(sovd_interfaces::sovd2uds::FileList {
         files: Vec::new(),
@@ -437,6 +441,7 @@ pub async fn route<T: UdsEcu + SchemaProvider + Clone, U: FileManager, S: Securi
         flash_data: Arc::clone(&flash_data),
         components_config: Arc::new(RwLock::new(components_config)),
         update_in_progress,
+        vehicle_base_uri_path,
     };
 
     let registry = EcuExecutionRegistry::default();
@@ -616,6 +621,7 @@ async fn ecu_route<T: UdsEcu + SchemaProvider + Clone, U: FileManager + 'static>
             ))
         })?),
         update_in_progress: Arc::clone(&state.update_in_progress),
+        vehicle_base_uri_path: state.vehicle_base_uri_path.clone(),
     };
     registry
         .register(
@@ -1170,6 +1176,7 @@ pub(crate) mod tests {
             })),
             mdd_embedded_files: Arc::new(file_manager),
             update_in_progress: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            vehicle_base_uri_path: BaseUriPath::new("/vehicle/v15"),
         }
     }
 }

@@ -11,9 +11,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
+use std::{
+    fmt,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use aide::{axum::ApiRouter, openapi::OpenApi};
@@ -120,8 +123,8 @@ impl DynamicRouter {
     }
 
     #[must_use]
-    pub fn get_vehicle_base_uri_path(&self) -> &BaseUriPath {
-        &self.options.vehicle_base_uri_path
+    pub fn get_vehicle_base_uri_path(&self) -> BaseUriPath {
+        self.options.vehicle_base_uri_path.clone()
     }
 
     /// Registers a route group and recomposes the router.
@@ -258,13 +261,14 @@ impl DynamicRouter {
     }
 }
 
+#[derive(Clone)]
 pub struct BaseUriPath {
-    value: String,
+    value: Arc<String>,
 }
 impl BaseUriPath {
     pub fn new(value: impl Into<String>) -> Self {
         Self {
-            value: value.into(),
+            value: Arc::new(value.into()),
         }
     }
     #[must_use]
@@ -272,6 +276,11 @@ impl BaseUriPath {
         let prefix = self.value.trim_end_matches('/');
         let suffix = suffix.trim_start_matches('/');
         format!("{prefix}/{suffix}")
+    }
+}
+impl fmt::Display for BaseUriPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
     }
 }
 

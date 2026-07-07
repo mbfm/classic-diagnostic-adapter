@@ -61,6 +61,7 @@ pub struct VehicleConfig {
     pub flash_files_path: String,
     pub functional_group_config: FunctionalDescriptionConfig,
     pub components_config: ComponentsConfig,
+    pub base_uri_path: BaseUriPath,
 }
 
 /// Runtime resources (handles, shared state) for vehicle SOVD routes.
@@ -97,7 +98,7 @@ where
     F: Future<Output = ()> + Clone + Send + 'static,
 {
     let dynamic_router = DynamicRouter::new(DynamicRouterOptions {
-        vehicle_base_uri_path: BaseUriPath::new("/vehicle/v15"),
+        vehicle_base_uri_path: BaseUriPath::new("/vehicle/v15"), //TODO get this via config
     });
     let listen_address = format!("{}:{}", config.host, config.port);
     let listener = TcpListener::bind(&listen_address).await.map_err(|e| {
@@ -182,6 +183,7 @@ where
         resources.file_manager,
         resources.locks,
         resources.update_in_progress,
+        config.base_uri_path,
     )
     .await;
     (router, registry)
@@ -207,7 +209,7 @@ where
     update_guard
         .extend_exempt(
             sovd::apps::sovd2uds::bulk_data::runtimefiles::update_exempt_routes(
-                dynamic_router.get_vehicle_base_uri_path(),
+                &dynamic_router.get_vehicle_base_uri_path(),
             ),
         )
         .await;
