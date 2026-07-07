@@ -20,6 +20,7 @@ use crate::AppError;
 
 pub mod configfile;
 pub mod generate;
+pub mod vehicle;
 
 /// Returns the effective configuration file path.
 ///

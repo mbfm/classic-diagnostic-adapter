@@ -18,13 +18,12 @@ use cda_comm_doip::DoipDiagGateway;
 use cda_core::EcuManager;
 use cda_interfaces::{
     UdsQuery,
-    datatypes::ComponentsConfig,
     runtime_update_api::{ReloadError, RuntimeFilesUpdateSecurityHandler},
 };
 use cda_plugin_security::{SecurityPlugin, SecurityPluginLoader};
 use tokio::sync::{Mutex, RwLock};
 
-use crate::{AppError, UdsManagerType};
+use crate::{AppError, UdsManagerType, config::vehicle::VehicleConfigFromConfiguration};
 
 pub mod security;
 
@@ -36,8 +35,6 @@ where
     pub config: Arc<RwLock<crate::config::configfile::Configuration>>,
     pub dynamic_router: cda_sovd::dynamic_router::DynamicRouter,
     pub vehicle_route_handle: cda_sovd::RouteHandle,
-    pub flash_files_path: String,
-    pub components_config: ComponentsConfig,
     pub lock_provider: Arc<cda_sovd::SovdLockStateProvider>,
     pub shutdown_signal: F,
     pub uds_manager: RwLock<UdsManagerType<S>>,
@@ -57,8 +54,6 @@ where
     config: Arc<RwLock<crate::config::configfile::Configuration>>,
     dynamic_router: cda_sovd::dynamic_router::DynamicRouter,
     vehicle_route_handle: cda_sovd::RouteHandle,
-    flash_files_path: String,
-    components_config: ComponentsConfig,
     lock_provider: Arc<cda_sovd::SovdLockStateProvider>,
     shutdown_signal: F,
     uds_manager: RwLock<UdsManagerType<S>>,
@@ -82,8 +77,6 @@ where
             config: deps.config,
             dynamic_router: deps.dynamic_router,
             vehicle_route_handle: deps.vehicle_route_handle,
-            flash_files_path: deps.flash_files_path,
-            components_config: deps.components_config,
             lock_provider: deps.lock_provider,
             shutdown_signal: deps.shutdown_signal,
             uds_manager: deps.uds_manager,
@@ -151,12 +144,7 @@ where
 
         // Build and replace vehicle routes
         let (vehicle_router, new_registry) = cda_sovd::build_vehicle_routes::<_, _, P>(
-            cda_sovd::VehicleConfig {
-                flash_files_path: self.flash_files_path.clone(),
-                functional_group_config: cfg.functional_description.clone(),
-                components_config: self.components_config.clone(),
-                base_uri_path: crate::vehicle_base_uri_path(),
-            },
+            cda_sovd::VehicleConfig::from_config(&cfg),
             cda_sovd::VehicleResources {
                 ecu_uds: new_components.uds_manager,
                 file_manager: new_components.file_managers,
@@ -207,8 +195,6 @@ pub struct RuntimeUpdateContext<
     pub dynamic_router: cda_sovd::dynamic_router::DynamicRouter,
     pub vehicle_route_handle: cda_sovd::RouteHandle,
     pub config: crate::config::configfile::Configuration,
-    pub flash_files_path: String,
-    pub components_config: ComponentsConfig,
     pub lock_provider: Arc<cda_sovd::SovdLockStateProvider>,
     pub update_guard: cda_sovd::UpdateGuardState,
     pub shutdown_signal: F,
@@ -298,8 +284,6 @@ where
             config: Arc::clone(&config),
             dynamic_router: ctx.dynamic_router.clone(),
             vehicle_route_handle: ctx.vehicle_route_handle,
-            flash_files_path: ctx.flash_files_path,
-            components_config: ctx.components_config,
             lock_provider: Arc::clone(&ctx.lock_provider),
             shutdown_signal: ctx.shutdown_signal,
             uds_manager: RwLock::new(ctx.uds_manager),

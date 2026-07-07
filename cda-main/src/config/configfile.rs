@@ -218,12 +218,19 @@ pub struct ServerConfig {
     pub address: String,
     /// TCP port the server listens on.
     pub port: u16,
+    /// Optional path element to avoid clashes in the URIs provided
+    /// by in-vehicle HTTP servers, as defined in the SOVD standard.
+    pub exve_manufacturer_specific: String,
+    /// SOVD version name to use in URLs.
+    pub sovd_version_identifier: String,
 }
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             address: "0.0.0.0".to_owned(),
             port: 20002,
+            exve_manufacturer_specific: "vehicle".to_owned(),
+            sovd_version_identifier: "v15".to_owned(),
         }
     }
 }

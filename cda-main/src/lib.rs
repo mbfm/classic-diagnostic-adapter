@@ -27,7 +27,7 @@ use cda_interfaces::{
 use cda_plugin_security::{
     DefaultSecurityPlugin, DefaultSecurityPluginData, SecurityPlugin, SecurityPluginLoader,
 };
-use cda_sovd::{Locks, dynamic_router::BaseUriPath};
+use cda_sovd::Locks;
 use cda_tracing::{OtelGuard, TracingSetupError, TracingWorkerGuard};
 use clap::{Parser, Subcommand};
 use figment::{
@@ -39,7 +39,7 @@ use tokio::sync::{Mutex, RwLock, mpsc};
 use tracing_subscriber::layer::SubscriberExt;
 
 use crate::{
-    config::configfile::Configuration,
+    config::{configfile::Configuration, vehicle::VehicleConfigFromConfiguration},
     mdd::{load_databases, resolve_mdd_paths},
     update::{RuntimeUpdateContext, security::UpdateSecurityHandler},
 };
@@ -55,10 +55,6 @@ const DOIP_HEALTH_COMPONENT_KEY: &str = "doip";
 
 #[cfg(feature = "health")]
 const MAIN_HEALTH_COMPONENT_KEY: &str = "main";
-
-fn vehicle_base_uri_path() -> BaseUriPath {
-    BaseUriPath::new("/vehicle/v15")
-}
 
 pub type DatabaseMap<S> = HashMap<String, RwLock<EcuManager<S>>>;
 pub type FileManagerMap = HashMap<String, FileManager>;
@@ -560,18 +556,11 @@ pub async fn setup_vehicle_and_routes<SP: SecurityPlugin, SL: SecurityPluginLoad
         ));
     }
 
-    let flash_files_path = config.flash_files_path.clone();
-    let components_config = config.components.clone();
     let runtime_update_config = config.runtime_update_config.clone();
 
     let (ecu_execution_registry, vehicle_route_handle) = cda_sovd::add_vehicle_routes::<_, _, SL>(
         dynamic_router,
-        cda_sovd::VehicleConfig {
-            flash_files_path: config.flash_files_path.clone(),
-            functional_group_config: config.functional_description.clone(),
-            components_config: config.components.clone(),
-            base_uri_path: crate::vehicle_base_uri_path(),
-        },
+        cda_sovd::VehicleConfig::from_config(&config),
         cda_sovd::VehicleResources {
             ecu_uds: vehicle_data.uds_manager.clone(),
             file_manager: vehicle_data.file_managers,
@@ -591,8 +580,6 @@ pub async fn setup_vehicle_and_routes<SP: SecurityPlugin, SL: SecurityPluginLoad
             dynamic_router: dynamic_router.clone(),
             vehicle_route_handle,
             config,
-            flash_files_path,
-            components_config,
             lock_provider: Arc::clone(&lock_provider),
             update_guard: vehicle_data.update_guard.clone(),
             shutdown_signal: clonable_shutdown_signal,

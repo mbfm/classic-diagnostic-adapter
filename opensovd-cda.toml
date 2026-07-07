@@ -654,8 +654,13 @@
 [server]
 # IP address the server listens on.
 # address = "0.0.0.0"
+# Optional path element to avoid clashes in the URIs provided
+# by in-vehicle HTTP servers, as defined in the SOVD standard.
+# exve_manufacturer_specific = "vehicle"
 # TCP port the server listens on.
 # port = 20002
+# SOVD version name to use in URLs.
+# sovd_version_identifier = "v15"
 
 # Strict-mode validation flags.
 [strict]
